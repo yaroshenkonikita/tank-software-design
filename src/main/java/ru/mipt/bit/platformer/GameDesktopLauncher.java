@@ -12,12 +12,19 @@ import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.Interpolation;
-import ru.mipt.bit.platformer.entity.Tank;
-import ru.mipt.bit.platformer.entity.Tree;
+import ru.mipt.bit.platformer.input.*;
+import ru.mipt.bit.platformer.input.actions.MoveAction;
+import ru.mipt.bit.platformer.input.actions.ShootAction;
+import ru.mipt.bit.platformer.model.FieldModel;
+import ru.mipt.bit.platformer.model.TankModel;
+import ru.mipt.bit.platformer.model.TreeModel;
+import ru.mipt.bit.platformer.view.FieldView;
+import ru.mipt.bit.platformer.view.TankView;
+import ru.mipt.bit.platformer.view.TreeView;
 import ru.mipt.bit.platformer.world.Direction;
-import ru.mipt.bit.platformer.world.Field;
 
 import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
+import static com.badlogic.gdx.Input.Keys.*;
 
 public class GameDesktopLauncher implements ApplicationListener {
 
@@ -26,13 +33,19 @@ public class GameDesktopLauncher implements ApplicationListener {
     private Batch batch;
 
     private TiledMap level;
-    private Field field;
+    private FieldView fieldView;
+    private FieldModel fieldModel;
 
     private Texture blueTankTexture;
     private Texture greenTreeTexture;
 
-    private Tank playerTank;
-    private Tree treeObstacle;
+    private TankModel playerTankModel;
+    private TankView playerTankView;
+    private TreeModel treeModel;
+    private TreeView treeView;
+
+    private InputHandler inputHandler;
+    private InputSource inputSource;
 
     @Override
     public void create() {
@@ -40,26 +53,31 @@ public class GameDesktopLauncher implements ApplicationListener {
 
         // load level tiles
         level = new TmxMapLoader().load("level.tmx");
-        field = new Field(level, batch, Interpolation.smooth);
+        fieldView = new FieldView(level, batch, Interpolation.smooth);
+        fieldModel = new FieldModel(fieldView.layer().getWidth(), fieldView.layer().getHeight());
 
         // Texture decodes an image file and loads it into GPU memory, it represents a native resource
         blueTankTexture = new Texture("images/tank_blue.png");
         greenTreeTexture = new Texture("images/greenTree.png");
 
         // entities
-        playerTank = new Tank(
-                new TextureRegion(blueTankTexture),
-                new GridPoint2(1, 1),
-                field.layer(),
-                MOVEMENT_SPEED
-        );
+        playerTankModel = new TankModel(new GridPoint2(1, 1), MOVEMENT_SPEED);
+        playerTankView = new TankView(playerTankModel, new TextureRegion(blueTankTexture), fieldView);
 
-        treeObstacle = new Tree(
-                new TextureRegion(greenTreeTexture),
-                new GridPoint2(1, 3),
-                field.layer()
-        );
-        field.addObstacle(treeObstacle);
+        treeModel = new TreeModel(new GridPoint2(1, 3));
+        treeView = new TreeView(treeModel, new TextureRegion(greenTreeTexture), fieldView);
+        fieldModel.addObstacle(treeModel);
+
+        // input
+        inputSource = new GdxInputSource();
+        inputHandler = new InputHandler()
+                // movement on hold
+                .on(new AnyHoldKeyBinding(UP, W), new MoveAction(playerTankModel, fieldModel, Direction.kUp))
+                .on(new AnyHoldKeyBinding(LEFT, A), new MoveAction(playerTankModel, fieldModel, Direction.kLeft))
+                .on(new AnyHoldKeyBinding(DOWN, S), new MoveAction(playerTankModel, fieldModel, Direction.kDown))
+                .on(new AnyHoldKeyBinding(RIGHT, D), new MoveAction(playerTankModel, fieldModel, Direction.kRight))
+                // shooting on press
+                .on(new AnyPressKeyBinding(SPACE), new ShootAction(playerTankModel));
     }
 
     @Override
@@ -71,19 +89,21 @@ public class GameDesktopLauncher implements ApplicationListener {
         // get time passed since the last render
         float deltaTime = Gdx.graphics.getDeltaTime();
 
-        for (Direction d : Direction.values()) {
-            if (d.isPressed()) {
-                playerTank.tryMove(d, field);
-                break;
-            }
-        }
+        // handle input
+        inputHandler.handle(inputSource);
 
-        playerTank.update(deltaTime, field);
+        // update model
+        playerTankModel.update(deltaTime);
 
-        field.render();
+        // update views
+        playerTankView.update(fieldView);
+        treeView.update(fieldView);
+
+        // render
+        fieldView.render();
         batch.begin();
-        playerTank.render(batch);
-        treeObstacle.render(batch);
+        playerTankView.render(batch);
+        treeView.render(batch);
         batch.end();
     }
 
@@ -107,7 +127,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         // dispose of all the native resources (classes which implement com.badlogic.gdx.utils.Disposable)
         blueTankTexture.dispose();
         greenTreeTexture.dispose();
-        field.dispose();
+        fieldView.dispose();
         batch.dispose();
     }
 
