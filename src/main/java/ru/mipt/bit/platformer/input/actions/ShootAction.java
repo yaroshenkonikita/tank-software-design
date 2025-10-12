@@ -1,18 +1,17 @@
 package ru.mipt.bit.platformer.input.actions;
 
 import ru.mipt.bit.platformer.input.InputAction;
-import ru.mipt.bit.platformer.model.TankModel;
+import ru.mipt.bit.platformer.model.Shooter;
 
 public class ShootAction implements InputAction {
-    private final TankModel tank;
+    private final Shooter shooter;
 
-    public ShootAction(TankModel tank) {
-        this.tank = tank;
+    public ShootAction(Shooter shooter) {
+        this.shooter = shooter;
     }
 
     @Override
     public void execute() {
-        tank.requestShoot();
+        shooter.requestShoot();
     }
 }
-

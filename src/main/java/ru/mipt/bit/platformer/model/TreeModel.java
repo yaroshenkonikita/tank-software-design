@@ -2,7 +2,7 @@ package ru.mipt.bit.platformer.model;
 
 import com.badlogic.gdx.math.GridPoint2;
 
-public class TreeModel extends EntityModel implements FieldModel.Obstacle {
+public class TreeModel extends EntityModel implements Obstacle {
 
     public TreeModel(GridPoint2 pos) {
         super(pos);
@@ -13,4 +13,3 @@ public class TreeModel extends EntityModel implements FieldModel.Obstacle {
         return tile.equals(coords);
     }
 }
-

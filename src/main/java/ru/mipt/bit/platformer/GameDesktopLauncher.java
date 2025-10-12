@@ -28,20 +28,15 @@ import static com.badlogic.gdx.Input.Keys.*;
 
 public class GameDesktopLauncher implements ApplicationListener {
 
-    private static final float MOVEMENT_SPEED = 0.4f;
-
     private Batch batch;
 
-    private TiledMap level;
     private FieldView fieldView;
-    private FieldModel fieldModel;
 
     private Texture blueTankTexture;
     private Texture greenTreeTexture;
 
     private TankModel playerTankModel;
     private TankView playerTankView;
-    private TreeModel treeModel;
     private TreeView treeView;
 
     private InputHandler inputHandler;
@@ -52,19 +47,19 @@ public class GameDesktopLauncher implements ApplicationListener {
         batch = new SpriteBatch();
 
         // load level tiles
-        level = new TmxMapLoader().load("level.tmx");
+        TiledMap level = new TmxMapLoader().load("level.tmx");
         fieldView = new FieldView(level, batch, Interpolation.smooth);
-        fieldModel = new FieldModel(fieldView.layer().getWidth(), fieldView.layer().getHeight());
+        FieldModel fieldModel = new FieldModel(fieldView.layer().getWidth(), fieldView.layer().getHeight());
 
         // Texture decodes an image file and loads it into GPU memory, it represents a native resource
         blueTankTexture = new Texture("images/tank_blue.png");
         greenTreeTexture = new Texture("images/greenTree.png");
 
         // entities
-        playerTankModel = new TankModel(new GridPoint2(1, 1), MOVEMENT_SPEED);
+        playerTankModel = new TankModel(new GridPoint2(1, 1));
         playerTankView = new TankView(playerTankModel, new TextureRegion(blueTankTexture), fieldView);
 
-        treeModel = new TreeModel(new GridPoint2(1, 3));
+        TreeModel treeModel = new TreeModel(new GridPoint2(1, 3));
         treeView = new TreeView(treeModel, new TextureRegion(greenTreeTexture), fieldView);
         fieldModel.addObstacle(treeModel);
 
@@ -82,29 +77,37 @@ public class GameDesktopLauncher implements ApplicationListener {
 
     @Override
     public void render() {
-        // clear the screen
-        Gdx.gl.glClearColor(0f, 0f, 0.2f, 1f);
-        Gdx.gl.glClear(GL_COLOR_BUFFER_BIT);
+        /* update() */ {
+            handleInput();
+            updateGameState();
+        }
 
-        // get time passed since the last render
-        float deltaTime = Gdx.graphics.getDeltaTime();
+        clearScreen();
+        updateViews();
 
-        // handle input
-        inputHandler.handle(inputSource);
-
-        // update model
-        playerTankModel.update(deltaTime);
-
-        // update views
-        playerTankView.update(fieldView);
-        treeView.update(fieldView);
-
-        // render
         fieldView.render();
         batch.begin();
         playerTankView.render(batch);
         treeView.render(batch);
         batch.end();
+    }
+
+    public void handleInput() {
+        inputHandler.handle(inputSource);
+    }
+
+    public void updateGameState() {
+        playerTankModel.update(Gdx.graphics.getDeltaTime());
+    }
+
+    public void clearScreen() {
+        Gdx.gl.glClearColor(0f, 0f, 0.2f, 1f);
+        Gdx.gl.glClear(GL_COLOR_BUFFER_BIT);
+    }
+
+    public void updateViews() {
+        playerTankView.update(fieldView);
+        treeView.update(fieldView);
     }
 
     @Override

@@ -3,10 +3,7 @@ package ru.mipt.bit.platformer.model;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.utils.Array;
 
-public class FieldModel {
-    public interface Obstacle {
-        boolean blocks(GridPoint2 tile);
-    }
+public class FieldModel implements Passability {
 
     private final int width;
     private final int height;
@@ -25,6 +22,7 @@ public class FieldModel {
         return t.x >= 0 && t.y >= 0 && t.x < width && t.y < height;
     }
 
+    @Override
     public boolean passable(GridPoint2 t) {
         if (!inside(t)) return false;
         for (Obstacle o : obstacles) {
@@ -32,8 +30,4 @@ public class FieldModel {
         }
         return true;
     }
-
-    public int getWidth() { return width; }
-    public int getHeight() { return height; }
 }
-
