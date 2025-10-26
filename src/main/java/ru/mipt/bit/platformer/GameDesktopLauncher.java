@@ -18,6 +18,8 @@ import ru.mipt.bit.platformer.input.actions.ShootAction;
 import ru.mipt.bit.platformer.model.FieldModel;
 import ru.mipt.bit.platformer.model.TankModel;
 import ru.mipt.bit.platformer.model.TreeModel;
+import ru.mipt.bit.platformer.level.LevelData;
+import ru.mipt.bit.platformer.level.LevelLoader;
 import ru.mipt.bit.platformer.view.FieldView;
 import ru.mipt.bit.platformer.view.TankView;
 import ru.mipt.bit.platformer.view.TreeView;
@@ -37,7 +39,7 @@ public class GameDesktopLauncher implements ApplicationListener {
 
     private TankModel playerTankModel;
     private TankView playerTankView;
-    private TreeView treeView;
+    private com.badlogic.gdx.utils.Array<TreeView> treeViews = new com.badlogic.gdx.utils.Array<>();
 
     private InputHandler inputHandler;
     private InputSource inputSource;
@@ -55,13 +57,20 @@ public class GameDesktopLauncher implements ApplicationListener {
         blueTankTexture = new Texture("images/tank_blue.png");
         greenTreeTexture = new Texture("images/greenTree.png");
 
-        // entities
-        playerTankModel = new TankModel(new GridPoint2(1, 1));
+        // build level: either from file or randomly
+        LevelData levelData = selectLevel(fieldView.layer().getWidth(), fieldView.layer().getHeight());
+
+        // player
+        playerTankModel = new TankModel(new GridPoint2(levelData.playerStart));
         playerTankView = new TankView(playerTankModel, new TextureRegion(blueTankTexture), fieldView);
 
-        TreeModel treeModel = new TreeModel(new GridPoint2(1, 3));
-        treeView = new TreeView(treeModel, new TextureRegion(greenTreeTexture), fieldView);
-        fieldModel.addObstacle(treeModel);
+        // obstacles (trees)
+        for (com.badlogic.gdx.math.GridPoint2 pos : levelData.treePositions) {
+            TreeModel treeModel = new TreeModel(new GridPoint2(pos));
+            TreeView view = new TreeView(treeModel, new TextureRegion(greenTreeTexture), fieldView);
+            treeViews.add(view);
+            fieldModel.addObstacle(treeModel);
+        }
 
         // input
         inputSource = new GdxInputSource();
@@ -88,7 +97,9 @@ public class GameDesktopLauncher implements ApplicationListener {
         fieldView.render();
         batch.begin();
         playerTankView.render(batch);
-        treeView.render(batch);
+        for (int i = 0; i < treeViews.size; i++) {
+            treeViews.get(i).render(batch);
+        }
         batch.end();
     }
 
@@ -107,7 +118,9 @@ public class GameDesktopLauncher implements ApplicationListener {
 
     public void updateViews() {
         playerTankView.update(fieldView);
-        treeView.update(fieldView);
+        for (int i = 0; i < treeViews.size; i++) {
+            treeViews.get(i).update(fieldView);
+        }
     }
 
     @Override
@@ -132,6 +145,15 @@ public class GameDesktopLauncher implements ApplicationListener {
         greenTreeTexture.dispose();
         fieldView.dispose();
         batch.dispose();
+    }
+
+    private LevelData selectLevel(int width, int height) {
+        try {
+            return LevelLoader.fromFile("level.txt", width, height);
+        } catch (IllegalArgumentException e) {
+            // fallback: random if file not found
+            return LevelLoader.random(width, height);
+        }
     }
 
     public static void main(String[] args) {
