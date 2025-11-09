@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.2" tiledversion="2020.04.10" orientation="orthogonal" renderorder="right-down" width="10" height="8" tilewidth="128" tileheight="128" infinite="0" nextlayerid="4" nextobjectid="1">
+<map version="1.2" tiledversion="2020.04.10" orientation="orthogonal" renderorder="right-down" width="10" height="8" tilewidth="128" tileheight="128" infinite="0" nextlayerid="5" nextobjectid="1010">
+ <properties>
+  <property name="randomLevel" type="bool" value="true"/>
+  <property name="treeCount" type="int" value="20"/>
+  <property name="enemyCount" type="int" value="5"/>
+ </properties>
  <tileset firstgid="1" name="Tanks Redux" tilewidth="128" tileheight="128" tilecount="2" columns="0">
   <grid orientation="orthogonal" width="1" height="1"/>
   <tile id="0">
@@ -19,6 +24,18 @@
 2,1,1,1,1,1,1,2,1,1,
 1,2,2,2,2,2,1,2,1,1,
 1,2,1,2,1,1,2,1,2,2
-</data>
+  </data>
  </layer>
+ <objectgroup name="Config">
+  <object id="1" name="Map">
+   <text>
+___T__T___
+__TT__TTTT
+_________T
+TTTT__T__T
+_____X____
+__________
+   </text>
+  </object>
+ </objectgroup>
 </map>

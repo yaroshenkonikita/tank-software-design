@@ -4,7 +4,6 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
 import ru.mipt.bit.platformer.model.EntityModel;
-import ru.mipt.bit.platformer.util.GdxGameUtils;
 
 public abstract class EntityView<M extends EntityModel> {
     protected final M model;
@@ -14,13 +13,18 @@ public abstract class EntityView<M extends EntityModel> {
     protected EntityView(M model, TextureRegion region) {
         this.model = model;
         this.region = region;
-        this.bounds = GdxGameUtils.createBoundingRectangle(region);
+        this.bounds = new Rectangle()
+                .setWidth(region.getRegionWidth())
+                .setHeight(region.getRegionHeight());
     }
 
     public abstract void update(FieldView fieldView);
 
     public void render(Batch batch) {
-        GdxGameUtils.drawTextureRegionUnscaled(batch, region, bounds, model.getRotationDeg());
+        int regionWidth = region.getRegionWidth();
+        int regionHeight = region.getRegionHeight();
+        float originX = regionWidth / 2f;
+        float originY = regionHeight / 2f;
+        batch.draw(region, bounds.x, bounds.y, originX, originY, regionWidth, regionHeight, 1f, 1f, model.getRotationDeg());
     }
 }
-

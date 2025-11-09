@@ -3,7 +3,7 @@ package ru.mipt.bit.platformer.input.actions;
 import ru.mipt.bit.platformer.input.InputAction;
 import ru.mipt.bit.platformer.model.Movable;
 import ru.mipt.bit.platformer.model.Passability;
-import ru.mipt.bit.platformer.world.Direction;
+import ru.mipt.bit.platformer.model.Direction;
 
 public class MoveAction implements InputAction {
     private final Movable actor;

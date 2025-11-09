@@ -25,9 +25,14 @@ public class FieldModel implements Passability {
     @Override
     public boolean passable(GridPoint2 t) {
         if (!inside(t)) return false;
-        for (Obstacle o : obstacles) {
-            if (o.blocks(t)) return false;
-        }
-        return true;
+        return !isBlockedByObstacle(t);
     }
+
+    private boolean isBlockedByObstacle(GridPoint2 t) {
+        for (Obstacle o : obstacles) {
+            if (o.blocks(t)) return true;
+        }
+        return false;
+    }
+
 }

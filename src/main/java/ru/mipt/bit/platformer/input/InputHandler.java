@@ -27,5 +27,13 @@ public class InputHandler {
             }
         }
     }
-}
 
+    public void handle(InputSource input, CommandQueue queue) {
+        for (Entry e : entries) {
+            if (e.binding.isActive(input)) {
+                queue.enqueue(e.action);
+                break;
+            }
+        }
+    }
+}

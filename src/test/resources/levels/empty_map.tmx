@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.2" tiledversion="2020.04.10" orientation="orthogonal" renderorder="right-down" width="10" height="10" tilewidth="128" tileheight="128" infinite="0" nextlayerid="1" nextobjectid="1">
+ <properties>
+  <property name="enemyCount" type="int" value="3"/>
+  <property name="randomLevel" type="bool" value="true"/>
+  <property name="treeCount" type="int" value="15"/>
+  </properties>
+</map>
