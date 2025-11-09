@@ -13,6 +13,7 @@ import com.badlogic.gdx.math.Interpolation;
 import ru.mipt.bit.platformer.input.*;
 import ru.mipt.bit.platformer.input.actions.MoveAction;
 import ru.mipt.bit.platformer.input.actions.ShootAction;
+import ru.mipt.bit.platformer.input.actions.ToggleHealthBarsAction;
 import ru.mipt.bit.platformer.model.FieldModel;
 import ru.mipt.bit.platformer.model.TankModel;
 import ru.mipt.bit.platformer.model.TreeModel;
@@ -20,6 +21,8 @@ import ru.mipt.bit.platformer.level.Level;
 import ru.mipt.bit.platformer.level.LevelLoader;
 import ru.mipt.bit.platformer.view.FieldView;
 import ru.mipt.bit.platformer.view.TankView;
+import ru.mipt.bit.platformer.view.HealthBarDecorator;
+import ru.mipt.bit.platformer.view.HealthBarsToggle;
 import ru.mipt.bit.platformer.view.TreeView;
 import ru.mipt.bit.platformer.model.Direction;
 
@@ -37,9 +40,9 @@ public class GameDesktopLauncher implements ApplicationListener {
     private Texture greenTreeTexture;
 
     private TankModel playerTankModel;
-    private TankView playerTankView;
+    private ru.mipt.bit.platformer.view.EntityView<TankModel> playerTankView;
     private com.badlogic.gdx.utils.Array<TankModel> enemyTankModels = new com.badlogic.gdx.utils.Array<>();
-    private com.badlogic.gdx.utils.Array<TankView> enemyTankViews = new com.badlogic.gdx.utils.Array<>();
+    private com.badlogic.gdx.utils.Array<ru.mipt.bit.platformer.view.EntityView<TankModel>> enemyTankViews = new com.badlogic.gdx.utils.Array<>();
     private com.badlogic.gdx.utils.Array<TreeView> treeViews = new com.badlogic.gdx.utils.Array<>();
 
     private InputHandler inputHandler;
@@ -47,6 +50,7 @@ public class GameDesktopLauncher implements ApplicationListener {
     private CommandQueue commands = new CommandQueue();
     private ru.mipt.bit.platformer.model.MovementPassability movementPassability;
     private ru.mipt.bit.platformer.model.CombinedPassability worldPassability;
+    private HealthBarsToggle healthBarsToggle = new HealthBarsToggle();
 
     @Override
     public void create() {
@@ -141,6 +145,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         greenTreeTexture.dispose();
         fieldView.dispose();
         batch.dispose();
+        HealthBarDecorator.disposeStatic();
     }
 
     
@@ -178,7 +183,8 @@ public class GameDesktopLauncher implements ApplicationListener {
 
     private void placePlayer(Level levelData) {
         playerTankModel = new TankModel(new GridPoint2(levelData.playerStart));
-        playerTankView = new TankView(playerTankModel, new TextureRegion(blueTankTexture), fieldView);
+        TankView basePlayerView = new TankView(playerTankModel, new TextureRegion(blueTankTexture), fieldView);
+        playerTankView = new HealthBarDecorator<>(basePlayerView, healthBarsToggle);
     }
 
     private void setupInput() {
@@ -214,7 +220,8 @@ public class GameDesktopLauncher implements ApplicationListener {
             if (!worldPassability.passable(pos)) continue;
             TankModel enemy = new TankModel(new GridPoint2(pos));
             enemyTankModels.add(enemy);
-            enemyTankViews.add(new TankView(enemy, new TextureRegion(blueTankTexture), fieldView));
+            TankView baseEnemyView = new TankView(enemy, new TextureRegion(blueTankTexture), fieldView);
+            enemyTankViews.add(new HealthBarDecorator<>(baseEnemyView, healthBarsToggle));
             occupied.add(key);
         }
     }
@@ -225,7 +232,8 @@ public class GameDesktopLauncher implements ApplicationListener {
                 .on(new AnyHoldKeyBinding(LEFT, A), new MoveAction(playerTankModel, worldPassability, Direction.kLeft))
                 .on(new AnyHoldKeyBinding(DOWN, S), new MoveAction(playerTankModel, worldPassability, Direction.kDown))
                 .on(new AnyHoldKeyBinding(RIGHT, D), new MoveAction(playerTankModel, worldPassability, Direction.kRight))
-                .on(new AnyPressKeyBinding(SPACE), new ShootAction(playerTankModel));
+                .on(new AnyPressKeyBinding(SPACE), new ShootAction(playerTankModel))
+                .on(new AnyPressKeyBinding(L), new ToggleHealthBarsAction(healthBarsToggle));
     }
 
     private void renderEntities() {
