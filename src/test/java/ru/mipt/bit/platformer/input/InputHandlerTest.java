@@ -31,18 +31,20 @@ class InputHandlerTest {
         InputHandler handler = new InputHandler()
                 .on(new AnyHoldKeyBinding('W'), () -> counter[0]++)
                 .on(new AnyPressKeyBinding(' '), () -> shot[0] = true);
+        CommandQueue queue = new CommandQueue();
 
         // hold W
         input.pressed = 'W';
-        handler.handle(input);
+        handler.handle(input, queue);
+        queue.executeAll();
         assertEquals(1, counter[0]);
         assertFalse(shot[0]);
 
         // press SPACE
         input.pressed = -1;
         input.justPressed = ' ';
-        handler.handle(input);
+        handler.handle(input, queue);
+        queue.executeAll();
         assertTrue(shot[0]);
     }
 }
-

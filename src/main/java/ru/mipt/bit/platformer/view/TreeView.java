@@ -1,18 +1,19 @@
 package ru.mipt.bit.platformer.view;
 
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Rectangle;
 import ru.mipt.bit.platformer.model.TreeModel;
-import ru.mipt.bit.platformer.util.GdxGameUtils;
 
 public class TreeView extends EntityView<TreeModel> {
     public TreeView(TreeModel model, TextureRegion region, FieldView fieldView) {
         super(model, region);
-        GdxGameUtils.moveRectangleAtTileCenter(fieldView.layer(), bounds, model.getCoords());
+        Rectangle initial = fieldView.mover().rectangleAtTileCenter(bounds, model.getCoords());
+        bounds.set(initial);
     }
 
     @Override
     public void update(FieldView fieldView) {
-        GdxGameUtils.moveRectangleAtTileCenter(fieldView.layer(), bounds, model.getCoords());
+        Rectangle current = fieldView.mover().rectangleAtTileCenter(bounds, model.getCoords());
+        bounds.set(current);
     }
 }
-

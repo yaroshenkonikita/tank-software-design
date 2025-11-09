@@ -1,4 +1,4 @@
-package ru.mipt.bit.platformer.world;
+package ru.mipt.bit.platformer.model;
 
 import com.badlogic.gdx.math.GridPoint2;
 import org.junit.jupiter.api.Test;
@@ -34,4 +34,3 @@ class DirectionTest {
         assertEquals(new GridPoint2(6, 5), Direction.kRight.next(p));
     }
 }
-

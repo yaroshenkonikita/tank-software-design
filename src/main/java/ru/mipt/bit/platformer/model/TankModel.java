@@ -1,10 +1,9 @@
 package ru.mipt.bit.platformer.model;
 
 import com.badlogic.gdx.math.GridPoint2;
-import ru.mipt.bit.platformer.world.Direction;
+import com.badlogic.gdx.math.MathUtils;
 
 import static com.badlogic.gdx.math.MathUtils.isEqual;
-import static ru.mipt.bit.platformer.util.GdxGameUtils.continueProgress;
 
 public class TankModel extends EntityModel implements Movable, Shooter {
     private final GridPoint2 dest = new GridPoint2();
@@ -25,15 +24,21 @@ public class TankModel extends EntityModel implements Movable, Shooter {
     public void tryMove(Direction dir, Passability field) {
         if (!isIdle()) return;
         GridPoint2 next = dir.next(coords);
-        rotationDeg = dir.rotationDeg;
         if (field.passable(next)) {
-            dest.set(next);
-            progress = 0f;
+            boolean reserved = true;
+            if (field instanceof MovementReservationAccess) {
+                reserved = ((MovementReservationAccess) field).tryReserve(coords, next, this);
+            }
+            if (reserved) {
+                rotationDeg = dir.rotationDeg;
+                dest.set(next);
+                progress = 0f;
+            }
         }
     }
 
     public void update(float deltaTime) {
-        progress = continueProgress(progress, deltaTime, movementSpeed);
+        progress = MathUtils.clamp(progress + deltaTime / movementSpeed, 0f, 1f);
         if (isIdle()) {
             coords.set(dest);
         }
