@@ -4,27 +4,27 @@ import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.Interpolation;
 import ru.mipt.bit.platformer.input.*;
 import ru.mipt.bit.platformer.input.actions.MoveAction;
 import ru.mipt.bit.platformer.input.actions.ShootAction;
 import ru.mipt.bit.platformer.input.actions.ToggleHealthBarsAction;
-import ru.mipt.bit.platformer.model.FieldModel;
-import ru.mipt.bit.platformer.model.TankModel;
-import ru.mipt.bit.platformer.model.TreeModel;
 import ru.mipt.bit.platformer.level.Level;
 import ru.mipt.bit.platformer.level.LevelLoader;
+import ru.mipt.bit.platformer.model.Direction;
+import ru.mipt.bit.platformer.model.GameWorld;
+import ru.mipt.bit.platformer.model.TankModel;
 import ru.mipt.bit.platformer.view.FieldView;
-import ru.mipt.bit.platformer.view.TankView;
 import ru.mipt.bit.platformer.view.HealthBarDecorator;
 import ru.mipt.bit.platformer.view.HealthBarsToggle;
-import ru.mipt.bit.platformer.view.TreeView;
-import ru.mipt.bit.platformer.model.Direction;
+import ru.mipt.bit.platformer.view.LevelGraphics;
+
+import java.util.Random;
 
 import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
 import static com.badlogic.gdx.Input.Keys.*;
@@ -34,23 +34,19 @@ public class GameDesktopLauncher implements ApplicationListener {
     private Batch batch;
 
     private FieldView fieldView;
-    private FieldModel fieldModel;
+    private GameWorld gameWorld;
+    private LevelGraphics levelGraphics;
 
     private Texture blueTankTexture;
     private Texture greenTreeTexture;
-
-    private TankModel playerTankModel;
-    private ru.mipt.bit.platformer.view.EntityView<TankModel> playerTankView;
-    private com.badlogic.gdx.utils.Array<TankModel> enemyTankModels = new com.badlogic.gdx.utils.Array<>();
-    private com.badlogic.gdx.utils.Array<ru.mipt.bit.platformer.view.EntityView<TankModel>> enemyTankViews = new com.badlogic.gdx.utils.Array<>();
-    private com.badlogic.gdx.utils.Array<TreeView> treeViews = new com.badlogic.gdx.utils.Array<>();
+    private Texture bulletTexture;
 
     private InputHandler inputHandler;
     private InputSource inputSource;
-    private CommandQueue commands = new CommandQueue();
-    private ru.mipt.bit.platformer.model.MovementPassability movementPassability;
-    private ru.mipt.bit.platformer.model.CombinedPassability worldPassability;
-    private HealthBarsToggle healthBarsToggle = new HealthBarsToggle();
+    private final CommandQueue commands = new CommandQueue();
+    private final HealthBarsToggle healthBarsToggle = new HealthBarsToggle();
+    private static final Direction[] DIRECTIONS = Direction.values();
+    private final Random aiRandom = new Random();
 
     @Override
     public void create() {
@@ -61,22 +57,25 @@ public class GameDesktopLauncher implements ApplicationListener {
         // build level: read from TMX config (player, trees, enemy count)
         Level levelData = LevelLoader.load("level.tmx");
 
-        createField(levelData);
-        placePlayer(levelData);
-        buildObstacleTrees(levelData);
-        buildEnemyTanks(levelData);
+        createFieldView(levelData);
+        gameWorld = new GameWorld(levelData);
+        levelGraphics = new LevelGraphics(fieldView, healthBarsToggle,
+                new TextureRegion(blueTankTexture),
+                new TextureRegion(greenTreeTexture),
+                new TextureRegion(bulletTexture));
+        gameWorld.addListener(levelGraphics);
 
         // initialize dynamic occupancy before first input frame
         refreshOccupancy();
 
         setupInput();
     }
-    
+
     private void update() {
-            refreshOccupancy();
-            handleInput();
-            updateGameState();
-        }
+        refreshOccupancy();
+        handleInput();
+        updateGameState();
+    }
 
     @Override
     public void render() {
@@ -97,13 +96,11 @@ public class GameDesktopLauncher implements ApplicationListener {
     public void updateGameState() {
         updateEnemyAI();
         commands.executeAll();
+        gameWorld.handleShootRequests();
 
         // Apply updates
         float dt = Gdx.graphics.getDeltaTime();
-        playerTankModel.update(dt);
-        for (int i = 0; i < enemyTankModels.size; i++) {
-            enemyTankModels.get(i).update(dt);
-        }
+        gameWorld.update(dt);
 
         releaseFinishedReservations();
     }
@@ -114,13 +111,7 @@ public class GameDesktopLauncher implements ApplicationListener {
     }
 
     public void updateViews() {
-        playerTankView.update(fieldView);
-        for (int i = 0; i < enemyTankViews.size; i++) {
-            enemyTankViews.get(i).update(fieldView);
-        }
-        for (int i = 0; i < treeViews.size; i++) {
-            treeViews.get(i).update(fieldView);
-        }
+        levelGraphics.updateViews();
     }
 
     @Override
@@ -143,6 +134,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         // dispose of all the native resources (classes which implement com.badlogic.gdx.utils.Disposable)
         blueTankTexture.dispose();
         greenTreeTexture.dispose();
+        bulletTexture.dispose();
         fieldView.dispose();
         batch.dispose();
         HealthBarDecorator.disposeStatic();
@@ -158,33 +150,26 @@ public class GameDesktopLauncher implements ApplicationListener {
     }
 
     private void refreshOccupancy() {
-        java.util.HashMap<Object, GridPoint2> positions = new java.util.HashMap<>();
-        if (playerTankModel != null) {
-            positions.put(playerTankModel, playerTankModel.getCoords());
-        }
-        for (int i = 0; i < enemyTankModels.size; i++) {
-            TankModel t = enemyTankModels.get(i);
-            positions.put(t, t.getCoords());
-        }
-        movementPassability.setTankPositions(positions);
+        gameWorld.refreshOccupancy();
     }
 
     private void loadTextures() {
         blueTankTexture = new Texture("images/tank_blue.png");
         greenTreeTexture = new Texture("images/greenTree.png");
+        bulletTexture = createBulletTexture();
     }
 
-    private void createField(Level levelData) {
+    private Texture createBulletTexture() {
+        Pixmap pixmap = new Pixmap(20, 20, Pixmap.Format.RGBA8888);
+        pixmap.setColor(1f, 0.85f, 0f, 1f);
+        pixmap.fill();
+        Texture texture = new Texture(pixmap);
+        pixmap.dispose();
+        return texture;
+    }
+
+    private void createFieldView(Level levelData) {
         fieldView = new FieldView(levelData.map, batch, Interpolation.smooth);
-        fieldModel = new FieldModel(levelData.width, levelData.height);
-        movementPassability = new ru.mipt.bit.platformer.model.MovementPassability(new ru.mipt.bit.platformer.model.MovementReservations());
-        worldPassability = new ru.mipt.bit.platformer.model.CombinedPassability(fieldModel, movementPassability);
-    }
-
-    private void placePlayer(Level levelData) {
-        playerTankModel = new TankModel(new GridPoint2(levelData.playerStart));
-        TankView basePlayerView = new TankView(playerTankModel, new TextureRegion(blueTankTexture), fieldView);
-        playerTankView = new HealthBarDecorator<>(basePlayerView, healthBarsToggle);
     }
 
     private void setupInput() {
@@ -192,79 +177,54 @@ public class GameDesktopLauncher implements ApplicationListener {
         inputHandler = createInputHandler();
     }
 
-    private void buildObstacleTrees(Level levelData) {
-        for (com.badlogic.gdx.math.GridPoint2 pos : levelData.treePositions) {
-            TreeModel treeModel = new TreeModel(new GridPoint2(pos));
-            TreeView view = new TreeView(treeModel, new TextureRegion(greenTreeTexture), fieldView);
-            treeViews.add(view);
-            fieldModel.addObstacle(treeModel);
-        }
-    }
-
-    private void buildEnemyTanks(Level levelData) {
-        java.util.Random rnd = new java.util.Random();
-        java.util.HashSet<String> occupied = new java.util.HashSet<>();
-        occupied.add(levelData.playerStart.x + "," + levelData.playerStart.y);
-        for (int i = 0; i < levelData.treePositions.size; i++) {
-            com.badlogic.gdx.math.GridPoint2 p = levelData.treePositions.get(i);
-            occupied.add(p.x + "," + p.y);
-        }
-        int attempts = 0;
-        int maxAttempts = levelData.width * levelData.height * 10;
-        while (enemyTankModels.size < levelData.enemyCount && attempts++ < maxAttempts) {
-            int x = rnd.nextInt(levelData.width);
-            int y = rnd.nextInt(levelData.height);
-            String key = x + "," + y;
-            if (occupied.contains(key)) continue;
-            com.badlogic.gdx.math.GridPoint2 pos = new com.badlogic.gdx.math.GridPoint2(x, y);
-            if (!worldPassability.passable(pos)) continue;
-            TankModel enemy = new TankModel(new GridPoint2(pos));
-            enemyTankModels.add(enemy);
-            TankView baseEnemyView = new TankView(enemy, new TextureRegion(blueTankTexture), fieldView);
-            enemyTankViews.add(new HealthBarDecorator<>(baseEnemyView, healthBarsToggle));
-            occupied.add(key);
-        }
-    }
 
     private InputHandler createInputHandler() {
         return new InputHandler()
-                .on(new AnyHoldKeyBinding(UP, W), new MoveAction(playerTankModel, worldPassability, Direction.kUp))
-                .on(new AnyHoldKeyBinding(LEFT, A), new MoveAction(playerTankModel, worldPassability, Direction.kLeft))
-                .on(new AnyHoldKeyBinding(DOWN, S), new MoveAction(playerTankModel, worldPassability, Direction.kDown))
-                .on(new AnyHoldKeyBinding(RIGHT, D), new MoveAction(playerTankModel, worldPassability, Direction.kRight))
-                .on(new AnyPressKeyBinding(SPACE), new ShootAction(playerTankModel))
+                .on(new AnyHoldKeyBinding(UP, W), playerMoveAction(Direction.kUp))
+                .on(new AnyHoldKeyBinding(LEFT, A), playerMoveAction(Direction.kLeft))
+                .on(new AnyHoldKeyBinding(DOWN, S), playerMoveAction(Direction.kDown))
+                .on(new AnyHoldKeyBinding(RIGHT, D), playerMoveAction(Direction.kRight))
+                .on(new AnyPressKeyBinding(SPACE), playerShootAction())
                 .on(new AnyPressKeyBinding(L), new ToggleHealthBarsAction(healthBarsToggle));
     }
 
+    private InputAction playerMoveAction(Direction direction) {
+        return () -> {
+            TankModel player = gameWorld.getPlayerTank();
+            if (player != null) {
+                player.tryMove(direction, gameWorld.getWorldPassability());
+            }
+        };
+    }
+
+    private InputAction playerShootAction() {
+        return () -> {
+            TankModel player = gameWorld.getPlayerTank();
+            if (player != null) {
+                player.requestShoot();
+            }
+        };
+    }
+
     private void renderEntities() {
-        playerTankView.render(batch);
-        for (int i = 0; i < enemyTankViews.size; i++) {
-            enemyTankViews.get(i).render(batch);
-        }
-        for (int i = 0; i < treeViews.size; i++) {
-            treeViews.get(i).render(batch);
-        }
+        levelGraphics.render(batch);
     }
 
     private void updateEnemyAI() {
-        java.util.Random rnd = new java.util.Random();
-        for (int i = 0; i < enemyTankModels.size; i++) {
-            TankModel bot = enemyTankModels.get(i);
-            if (bot.isIdle()) {
-                Direction[] dirs = Direction.values();
-                Direction dir = dirs[rnd.nextInt(4)];
-                commands.enqueue(new MoveAction(bot, worldPassability, dir));
+        com.badlogic.gdx.utils.Array<TankModel> enemies = gameWorld.getEnemyTankModels();
+        for (int i = 0; i < enemies.size; i++) {
+            TankModel bot = enemies.get(i);
+            if (!bot.isIdle()) continue;
+            if (aiRandom.nextFloat() < 0.5f) {
+                commands.enqueue(new ShootAction(bot));
+            } else {
+                Direction dir = DIRECTIONS[aiRandom.nextInt(DIRECTIONS.length)];
+                commands.enqueue(new MoveAction(bot, gameWorld.getWorldPassability(), dir));
             }
         }
     }
 
     private void releaseFinishedReservations() {
-        if (playerTankModel.isIdle()) {
-            movementPassability.release(playerTankModel);
-        }
-        for (int i = 0; i < enemyTankModels.size; i++) {
-            TankModel t = enemyTankModels.get(i);
-            if (t.isIdle()) movementPassability.release(t);
-        }
+        gameWorld.releaseFinishedReservations();
     }
 }

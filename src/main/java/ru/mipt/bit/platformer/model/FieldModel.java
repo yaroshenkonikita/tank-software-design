@@ -28,6 +28,17 @@ public class FieldModel implements Passability {
         return !isBlockedByObstacle(t);
     }
 
+    public boolean hasObstacle(GridPoint2 t) {
+        return isBlockedByObstacle(t);
+    }
+
+    public Obstacle findObstacle(GridPoint2 t) {
+        for (Obstacle o : obstacles) {
+            if (o.blocks(t)) return o;
+        }
+        return null;
+    }
+
     private boolean isBlockedByObstacle(GridPoint2 t) {
         for (Obstacle o : obstacles) {
             if (o.blocks(t)) return true;
