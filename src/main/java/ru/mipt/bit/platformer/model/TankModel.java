@@ -10,13 +10,17 @@ public class TankModel extends EntityModel implements Movable, Shooter, HealthPr
     private float progress = 1f;
     private static final float movementSpeed = 0.4f;
     private boolean shootRequested = false;
+    private static final float shootCooldownSeconds = 1f;
+    private float shootCooldownTimer = 0f;
     private final int maxHealth = 100;
     private int health;
+    private Direction facing = Direction.kRight;
 
     public TankModel(GridPoint2 start) {
         super(start);
         this.dest.set(start);
         this.health = maxHealth;
+        this.rotationDeg = facing.rotationDeg;
     }
 
     public boolean isIdle() {
@@ -26,6 +30,8 @@ public class TankModel extends EntityModel implements Movable, Shooter, HealthPr
     @Override
     public void tryMove(Direction dir, Passability field) {
         if (!isIdle()) return;
+        rotationDeg = dir.rotationDeg;
+        facing = dir;
         GridPoint2 next = dir.next(coords);
         if (field.passable(next)) {
             boolean reserved = true;
@@ -33,7 +39,6 @@ public class TankModel extends EntityModel implements Movable, Shooter, HealthPr
                 reserved = ((MovementReservationAccess) field).tryReserve(coords, next, this);
             }
             if (reserved) {
-                rotationDeg = dir.rotationDeg;
                 dest.set(next);
                 progress = 0f;
             }
@@ -44,6 +49,9 @@ public class TankModel extends EntityModel implements Movable, Shooter, HealthPr
         progress = MathUtils.clamp(progress + deltaTime / movementSpeed, 0f, 1f);
         if (isIdle()) {
             coords.set(dest);
+        }
+        if (shootCooldownTimer > 0f) {
+            shootCooldownTimer = Math.max(0f, shootCooldownTimer - deltaTime);
         }
     }
 
@@ -57,7 +65,9 @@ public class TankModel extends EntityModel implements Movable, Shooter, HealthPr
 
     @Override
     public void requestShoot() {
-        shootRequested = true;
+        if (canShoot()) {
+            shootRequested = true;
+        }
     }
 
     public boolean consumeShootRequested() {
@@ -84,5 +94,17 @@ public class TankModel extends EntityModel implements Movable, Shooter, HealthPr
     public void heal(int amount) {
         if (amount <= 0) return;
         health = MathUtils.clamp(health + amount, 0, maxHealth);
+    }
+
+    public Direction getFacing() {
+        return facing;
+    }
+
+    public boolean canShoot() {
+        return shootCooldownTimer <= 0f;
+    }
+
+    void onShotFired() {
+        shootCooldownTimer = shootCooldownSeconds;
     }
 }
