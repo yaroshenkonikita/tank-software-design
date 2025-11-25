@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Random;
 
-public class GameWorld implements LevelObservable {
+public class GameWorld implements LevelObservable, BulletSpawnListener {
     private static final int BULLET_DAMAGE = 25;
     private static final float BULLET_TILE_TIME = 0.12f;
 
@@ -125,20 +125,9 @@ public class GameWorld implements LevelObservable {
         cleanupBullets();
     }
 
-    public void handleShootRequests() {
-        if (playerTank != null && playerTank.consumeShootRequested()) {
-            spawnBullet(playerTank);
-        }
-        for (int i = 0; i < enemyTankModels.size; i++) {
-            TankModel tank = enemyTankModels.get(i);
-            if (tank.consumeShootRequested()) {
-                spawnBullet(tank);
-            }
-        }
-    }
-
     private void spawnPlayer(GridPoint2 start) {
         playerTank = new TankModel(new GridPoint2(start));
+        playerTank.addBulletSpawnListener(this);
         notifyAdded(playerTank);
     }
 
@@ -171,6 +160,7 @@ public class GameWorld implements LevelObservable {
             if (occupied.contains(k)) continue;
             if (!worldPassability.passable(pos)) continue;
             TankModel enemy = new TankModel(pos);
+            enemy.addBulletSpawnListener(this);
             enemyTankModels.add(enemy);
             occupied.add(k);
             notifyAdded(enemy);
@@ -191,6 +181,11 @@ public class GameWorld implements LevelObservable {
                 if (bullet.isDestroyed()) break;
             }
         }
+    }
+
+    @Override
+    public void onBulletSpawnRequested(TankModel shooter) {
+        spawnBullet(shooter);
     }
 
     private void spawnBullet(TankModel shooter) {
@@ -282,6 +277,7 @@ public class GameWorld implements LevelObservable {
 
     private void removeTank(TankModel tank) {
         if (tank == null) return;
+        tank.removeBulletSpawnListener(this);
         movementPassability.release(tank);
         if (tank == playerTank) {
             playerTank = null;

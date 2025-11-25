@@ -2,6 +2,7 @@ package ru.mipt.bit.platformer.model;
 
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.utils.Array;
 
 import static com.badlogic.gdx.math.MathUtils.isEqual;
 
@@ -9,12 +10,12 @@ public class TankModel extends EntityModel implements Movable, Shooter, HealthPr
     private final GridPoint2 dest = new GridPoint2();
     private float progress = 1f;
     private static final float movementSpeed = 0.4f;
-    private boolean shootRequested = false;
     private static final float shootCooldownSeconds = 1f;
     private float shootCooldownTimer = 0f;
     private final int maxHealth = 100;
     private int health;
     private Direction facing = Direction.kRight;
+    private final Array<BulletSpawnListener> bulletSpawnListeners = new Array<>();
 
     public TankModel(GridPoint2 start) {
         super(start);
@@ -66,14 +67,8 @@ public class TankModel extends EntityModel implements Movable, Shooter, HealthPr
     @Override
     public void requestShoot() {
         if (canShoot()) {
-            shootRequested = true;
+            notifyBulletSpawnRequested();
         }
-    }
-
-    public boolean consumeShootRequested() {
-        boolean was = shootRequested;
-        shootRequested = false;
-        return was;
     }
 
     @Override
@@ -106,5 +101,22 @@ public class TankModel extends EntityModel implements Movable, Shooter, HealthPr
 
     void onShotFired() {
         shootCooldownTimer = shootCooldownSeconds;
+    }
+
+    public void addBulletSpawnListener(BulletSpawnListener listener) {
+        if (listener == null || bulletSpawnListeners.contains(listener, true)) {
+            return;
+        }
+        bulletSpawnListeners.add(listener);
+    }
+
+    public void removeBulletSpawnListener(BulletSpawnListener listener) {
+        bulletSpawnListeners.removeValue(listener, true);
+    }
+
+    private void notifyBulletSpawnRequested() {
+        for (int i = 0; i < bulletSpawnListeners.size; i++) {
+            bulletSpawnListeners.get(i).onBulletSpawnRequested(this);
+        }
     }
 }
